@@ -5,54 +5,49 @@ on:
     branches: [ 'main' ]
 
 jobs:
-  terraform:
-    name: 'Terraform'
+  deploy:
+    name: 'Provision infra and deploy app'
     runs-on: ubuntu-latest
-    defaults:
-      run:
-        working-directory: infra
 
     steps:
-      - name: 'Checkout repository'
+      - name: Checkout repository
         uses: actions/checkout@v3
 
-      - name: 'Setup Terraform'
-        uses: hashicorp/setup-terraform@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v1
         with:
-          terraform_version: '1.5.0'
+          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
 
-      - name: 'Debug TF_VARs'
-        env:
-          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
-          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
-        run: |
-          echo "DEBUG: TF_VAR_s3_bucket_name=$TF_VAR_s3_bucket_name"
-          echo "DEBUG: TF_VAR_dynamodb_table_name=$TF_VAR_dynamodb_table_name"
-
-      - name: 'Terraform Init'
-        env:
-          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
-          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+      - name: Terraform Init
+        working-directory: infra
         run: terraform init -input=false
 
-      - name: 'Terraform Plan'
-        env:
-          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
-          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+      - name: Terraform Plan
+        working-directory: infra
         run: terraform plan -out=tfplan -input=false
 
-      - name: 'Terraform Apply'
+      - name: Terraform Apply
         if: github.ref == 'refs/heads/main'
+        working-directory: infra
+        run: terraform apply -input=false -auto-approve tfplan
+
+      - name: Get AWS Account ID
+        id: aws-account
+        run: echo "::set-output name=account_id::$(aws sts get-caller-identity --query Account --output text)"
+
+      - name: Login to Amazon ECR
+        run: |
+          aws ecr get-login-password --region ${{ secrets.AWS_REGION }} \
+            | docker login --username AWS --password-stdin \
+              ${{ steps.aws-account.outputs.account_id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com
+
+      - name: Build and Push Docker image
+        run: |
+          cd ${{ github.workspace }}
+          IMAGE_URI=${{ steps.aws-account.outputs.account_id }}.dkr.ecr.${{ secrets.AWS_REGION }}.amazonaws.com/${{ secrets.ECR_REPO_NAME }}:latest
+          docker build -t $IMAGE_URI .
+          docker push $IMAGE_URI
         env:
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
-          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
-          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
-        run: terraform apply -input=false -auto-approve tfplan 
+          ECR_REPO_NAME: ${{ secrets.ECR_REPO_NAME }} 
