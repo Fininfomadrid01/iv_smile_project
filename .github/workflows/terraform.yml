@@ -21,16 +21,32 @@ jobs:
         with:
           terraform_version: '1.5.0'
 
+      - name: 'Debug TF_VARs'
+        env:
+          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
+        run: |
+          echo "DEBUG: TF_VAR_s3_bucket_name=$TF_VAR_s3_bucket_name"
+          echo "DEBUG: TF_VAR_dynamodb_table_name=$TF_VAR_dynamodb_table_name"
+
       - name: 'Terraform Init'
+        env:
+          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
         run: terraform init -input=false
 
       - name: 'Terraform Plan'
+        env:
+          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
         run: terraform plan -out=tfplan -input=false
 
       - name: 'Terraform Apply'
         if: github.ref == 'refs/heads/main'
-        run: terraform apply -input=false -auto-approve tfplan
         env:
           AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
           AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }} 
+          AWS_REGION: ${{ secrets.AWS_REGION }}
+          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
+        run: terraform apply -input=false -auto-approve tfplan 
