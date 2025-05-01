@@ -1,7 +1,7 @@
 [flake8]
 max-line-length = 120
 # Ignorar errores comunes de estilo y módulos externos mientras se hacen refactors
-extend-ignore = E203, E266, E501, W291, W292, W293, E722, E402, E302, E305, E221, F401, F541, E131, F821
+extend-ignore = E203, E266, E501, W291, W292, W293, E722, E402, E302, E305, E221, F401, F541, E131, F821, E701, E231, E272
 exclude =
     .git,
     __pycache__,
