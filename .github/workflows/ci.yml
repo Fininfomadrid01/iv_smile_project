@@ -25,7 +25,8 @@ jobs:
 
       - name: Lint with flake8
         run: |
-          flake8 --max-line-length=88 .
+          # Usar flake8 con el archivo de configuración .flake8
+          flake8 --config .flake8 .
 
       - name: Run tests
         run: |
