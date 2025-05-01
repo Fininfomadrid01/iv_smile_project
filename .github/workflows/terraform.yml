@@ -31,20 +31,24 @@ jobs:
 
       - name: 'Terraform Init'
         env:
-          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
-          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          TF_VAR_s3_bucket_name:        ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name:   ${{ secrets.DYNAMODB_TABLE_NAME }}
+          TF_VAR_ecr_repo_name:         ${{ secrets.ECR_REPO_NAME }}
+          TF_VAR_app_runner_service_name: ${{ secrets.APP_RUNNER_SERVICE_NAME }}
+          AWS_ACCESS_KEY_ID:            ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY:        ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:                   ${{ secrets.AWS_REGION }}
         run: terraform init -input=false
 
       - name: 'Terraform Plan'
         env:
-          TF_VAR_s3_bucket_name: ${{ secrets.S3_BUCKET_NAME }}
-          TF_VAR_dynamodb_table_name: ${{ secrets.DYNAMODB_TABLE_NAME }}
-          AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
-          AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          AWS_REGION: ${{ secrets.AWS_REGION }}
+          TF_VAR_s3_bucket_name:        ${{ secrets.S3_BUCKET_NAME }}
+          TF_VAR_dynamodb_table_name:   ${{ secrets.DYNAMODB_TABLE_NAME }}
+          TF_VAR_ecr_repo_name:         ${{ secrets.ECR_REPO_NAME }}
+          TF_VAR_app_runner_service_name: ${{ secrets.APP_RUNNER_SERVICE_NAME }}
+          AWS_ACCESS_KEY_ID:            ${{ secrets.AWS_ACCESS_KEY_ID }}
+          AWS_SECRET_ACCESS_KEY:        ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          AWS_REGION:                   ${{ secrets.AWS_REGION }}
         run: terraform plan -out=tfplan -input=false
 
       - name: 'Terraform Apply'
