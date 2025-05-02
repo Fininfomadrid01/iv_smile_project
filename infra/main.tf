@@ -49,6 +49,66 @@ resource "aws_ecr_repository" "app" {
   name = var.ecr_repo_name
 }
 
+# Permisos para que App Runner lea de ECR
+resource "aws_iam_role" "apprunner_ecr_access" {
+  name = "${var.app_runner_service_name}-ecr-access"
+  assume_role_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [{
+      Effect    = "Allow"
+      Principal = { Service = "build.apprunner.amazonaws.com" }
+      Action    = "sts:AssumeRole"
+    }]
+  })
+}
+
+resource "aws_iam_role_policy" "apprunner_ecr_policy" {
+  role   = aws_iam_role.apprunner_ecr_access.name
+  policy = jsonencode({
+    Version = "2012-10-17",
+    Statement = [
+      {
+        Effect   = "Allow",
+        Action   = [
+          "ecr:GetDownloadUrlForLayer",
+          "ecr:BatchGetImage",
+          "ecr:BatchCheckLayerAvailability"
+        ],
+        Resource = aws_ecr_repository.app.arn
+      },
+      {
+        Effect   = "Allow",
+        Action   = ["ecr:GetAuthorizationToken"],
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+# Servicio AWS App Runner
+resource "aws_app_runner_service" "app" {
+  service_name = var.app_runner_service_name
+
+  source_configuration {
+    image_repository {
+      image_identifier      = "${aws_ecr_repository.app.repository_url}:latest"
+      image_repository_type = "ECR"
+      authentication_configuration {
+        access_role_arn = aws_iam_role.apprunner_ecr_access.arn
+      }
+    }
+  }
+
+  instance_configuration {
+    cpu    = "1024"
+    memory = "2048"
+  }
+
+  tags = {
+    Environment = var.environment
+  }
+}
+
 # Outputs de la infraestructura
 output "s3_bucket_id" {
   value       = aws_s3_bucket.data_bucket.id
@@ -63,4 +123,10 @@ output "dynamodb_table_name" {
 output "ecr_repo_url" {
   value       = aws_ecr_repository.app.repository_url
   description = "URL del repositorio ECR creado"
+}
+
+# Output con la URL pública de App Runner
+output "app_url" {
+  value       = aws_app_runner_service.app.service_url
+  description = "URL pública del servicio App Runner"
 } 
