@@ -86,7 +86,7 @@ resource "aws_iam_role_policy" "apprunner_ecr_policy" {
 }
 
 # Servicio AWS App Runner
-resource "aws_app_runner_service" "app" {
+resource "aws_apprunner_service" "app" {
   service_name = var.app_runner_service_name
 
   source_configuration {
@@ -127,6 +127,6 @@ output "ecr_repo_url" {
 
 # Output con la URL pública de App Runner
 output "app_url" {
-  value       = aws_app_runner_service.app.service_url
+  value       = aws_apprunner_service.app.service_url
   description = "URL pública del servicio App Runner"
 } 
