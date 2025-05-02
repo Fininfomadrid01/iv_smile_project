@@ -1,18 +1,19 @@
-# Dockerfile para la aplicación IV Smile en Streamlit
+# Dockerfile para la aplicación IV-Smile con Streamlit
 FROM python:3.9-slim
 
-# Directorio de trabajo
+# Directorio de trabajo dentro del contenedor
 WORKDIR /app
 
-# Copiar dependencias e instalarlas
+# Copiar y instalar dependencias
 COPY requirements.txt ./
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Copiar el resto del código
-COPY . .
+# Copiar el código de la aplicación
+COPY app/ ./app/
 
-# Puerto que usará Streamlit
+# Exponer el puerto que usará Streamlit
 EXPOSE 8501
 
 # Comando de arranque
-CMD ["streamlit", "run", "app/iv_smile_app.py", "--server.port", "8501", "--server.address", "0.0.0.0"] 
+CMD ["streamlit", "run", "app/iv_smile_app.py", \
+     "--server.port", "8501", "--server.address", "0.0.0.0"]
