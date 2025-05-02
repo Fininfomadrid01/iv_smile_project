@@ -93,9 +93,6 @@ resource "aws_apprunner_service" "app" {
     image_repository {
       image_identifier      = "${aws_ecr_repository.app.repository_url}:latest"
       image_repository_type = "ECR"
-      authentication_configuration {
-        access_role_arn = aws_iam_role.apprunner_ecr_access.arn
-      }
     }
   }
 
