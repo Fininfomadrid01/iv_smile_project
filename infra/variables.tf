@@ -28,4 +28,29 @@ variable "s3_bucket_name" {
 variable "dynamodb_table_name" {
   description = "Nombre de la tabla DynamoDB para metadatos"
   type        = string
+}
+
+variable "raw_table_name" {
+  description = "Nombre de la tabla RawPrices"
+  type        = string
+}
+
+variable "iv_table_name" {
+  description = "Nombre de la tabla ImpliedVols"
+  type        = string
+}
+
+variable "lambda_role_name" {
+  description = "Nombre del role de ejecución de Lambda"
+  type        = string
+}
+
+variable "scraper_lambda_name" {
+  description = "Nombre de la función Lambda para scraper"
+  type        = string
+}
+
+variable "iv_lambda_name" {
+  description = "Nombre de la función Lambda para cálculo de IV"
+  type        = string
 } 

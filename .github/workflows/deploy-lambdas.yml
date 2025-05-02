@@ -1,0 +1,65 @@
+name: Deploy Lambdas and Infra
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  terraform:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v1
+        with:
+          terraform_version: "1.1.0"
+
+      - name: Terraform Init
+        working-directory: infra
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: infra
+        run: terraform apply -auto-approve
+
+  deploy_lambdas:
+    name: Deploy Lambdas
+    needs: terraform
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v3
+
+      - name: Setup Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
+
+      - name: Install dependencies
+        run: |
+          pip install boto3 awscli
+
+      - name: Package scraper Lambda
+        run: |
+          cd lambda
+          zip -r scraper_lambda.zip scraper_lambda.py
+
+      - name: Deploy scraper Lambda
+        run: |
+          aws lambda update-function-code --function-name ${RAW_LAMBDA_NAME} --zip-file fileb://lambda/scraper_lambda.zip
+        env:
+          RAW_LAMBDA_NAME: ${{ secrets.RAW_LAMBDA_NAME }}
+
+      - name: Package iv Lambda
+        run: |
+          cd lambda
+          zip -r iv_lambda.zip iv_lambda.py
+
+      - name: Deploy iv Lambda
+        run: |
+          aws lambda update-function-code --function-name ${IV_LAMBDA_NAME} --zip-file fileb://lambda/iv_lambda.zip
+        env:
+          IV_LAMBDA_NAME: ${{ secrets.IV_LAMBDA_NAME }} 

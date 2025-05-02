@@ -1,0 +1,128 @@
+Aquí tienes un resumen de lo que hemos avanzado y de los hitos que quedan por cerrar antes de nuestra próxima conversación:
+1) Proyecto Python y Streamlit
+• Scraper Selenium para MEFF (todas las fechas de expiración y futuro).
+• Módulo de volatilidad (scraper/volatility.py) usando MibianLib, con columnas IV_raw e IV.
+• Scripts de exportación:
+export_raw_data.py → genera CSV crudos en output/raw/.
+calculate_iv_from_csv.py → lee esos CSV, filtra filas no numéricas, calcula IV y vuelca CSV en output/iv/.
+• App en Streamlit (app/iv_smile_app.py) que carga los CSV de IV y dibuja la IV-Smile para Calls y Puts.
+• Contenerización:
+Dockerfile para la app.
+docker-compose.yml con LocalStack y DynamoDB Local para desarrollo offline.
+2) Control de versiones y CI en GitHub
+• Repositorio GitHub privado con todo el código.
+• Workflow CI (ci.yml):
+Se dispara en cada PR a main.
+Ejecuta flake8 (con .flake8 relajado) y pytest.
+• Workflow Terraform CI/CD (terraform.yml):
+Se dispara en cada push a main.
+Provisiona infra con Terraform (S3, DynamoDB, ECR, IAM, App Runner).
+Construye y sube la imagen Docker a ECR.
+Despliega la app en App Runner.
+3) Infraestructura en AWS (via Terraform)
+• Recursos ya definidos en infra/:
+Bucket S3 y tabla DynamoDB.
+Repositorio ECR y rol IAM para App Runner.
+Servicio App Runner apuntando a :latest.
+• Workflow de despliegue automatizado en Actions.
+Pendiente:
+Importar los recursos S3 y DynamoDB existentes al estado de Terraform (o renombrarlos) para evitar el error “already exists”.
+Completar el paso Terraform Apply sin colisiones de estado.
+4) Lo que queda por cubrir en la práctica
+a) Funciones serverless:
+Una Lambda diaria que haga web scraping y vuelque datos en DynamoDB (o S3).
+Otra Lambda desencadenada tras el scraping que calcule la IV y actualice la base.
+Workflow en Actions para desplegar estas Lambdas (AWS SAM o Terraform).
+b) API REST (API Gateway + Lambda) para exponer los datos a la UI.
+c) Modificar la app Streamlit para que lea directamente de la base de datos / API, y permita:
+Seleccionar fechas pasadas.
+Comparar skews en varios vencimientos.
+Mostrar la superficie de volatilidad en 3D.
+d) Diagramar en README.md la arquitectura completa (services, flujos de datos, contenedores y funciones).
+e) Incluir Dockerfiles/workflows para las nuevas funciones y la API.
+Con esto tendrás cubiertos los puntos de “Aplicación Web” (3 pt) y la mayoría de “Uso de servicios cloud” (7 pt). En nuestra próxima sesión podemos centrarnos en:
+Resolver el bloqueo del estado Terraform (importar recursos).
+Desarrollar y desplegar las Lambdas de scraping y de cálculo.
+Definir la API REST y conectar la UI a DynamoDB.
+Construir el diagrama arquitectónico en el README.
+¡Nos vemos en la siguiente!
+
+
+
+02/05/2025
+
+Aquí tienes un resumen de todo lo que hemos hecho hasta el momento, comparándolo con los objetivos marcados en la práctica mIA-13:
+1) Aplicación Web (3 pt)
+• Scraping de MEFF con Selenium/BeautifulSoup para extraer
+– Datos del FUTURO Mini-Ibex (ANT), y
+– Tablas de Calls y Puts para todas las fechas de expiración.
+• Parseo de las tablas HTML en DataFrames de pandas.
+• Cálculo de volatilidad implícita con Black-Scholes (tasa = 0), usando MibianLib.
+• Aplicación Streamlit (app/iv_smile_app.py):
+– Carga automática de CSVs de output/ (futuros, calls, puts).
+– Gráficos de IV-Smile por fecha y por tipo (Call/Put).
+• Todo el código está en GitHub en un repo privado.
+2) Uso de servicios cloud (7 pt)
+• Infraestructura con Terraform (infra/main.tf, variables.tf):
+– S3 bucket para datos (iv-smile-data-2025).
+– DynamoDB table para metadatos (iv-smile-metadata).
+– ECR repository para la imagen Docker (iv-smile-app).
+– IAM Role/Policy y App Runner service desplegando la imagen :latest.
+• Despliegue completo:
+– Descarga de Terraform v1.11.4 y configuración en AWS CloudShell.
+– terraform apply crea S3, DynamoDB, ECR, IAM Role/Policy y App Runner.
+– Importación de recursos existentes (bucket, tabla, rol ECR) para sincronización de state.
+– Outputs expuestos:
+• s3_bucket_id
+• dynamodb_table_name
+• ecr_repo_url
+• app_url → URL pública de la App Runner.
+• Docker:
+– Dockerfile optimizado y .dockerignore para no incluir infra/ ni archivos de estado.
+– Construcción de imagen con docker build -t <ECR_URL>:latest .
+– Push a ECR tras login con AWS CLI.
+• Orquestación simplificada con Makefile en la raíz:
+– make infra-init, make infra-apply, make docker-build, make docker-push y make deploy-all.
+3) Pendientes / Siguientes pasos
+– Workflows de GitHub Actions (flake8/tests en PR y despliegue en main).
+– Funciones programadas (Lambda/Fargate) para scraping y refresco diario, con triggers y escritura en base de datos.
+– Refactorizar la UI para leer datos desde DynamoDB en lugar de CSV.
+– Exponer API REST (API Gateway + Lambda) para que la UI consulte los datos.
+– Mostrar superficie de volatilidad (3D) y comparar diferentes fechas.
+– Asociar dominio personalizado y HTTPS con ACM en App Runner.
+– Diagrama de arquitectura en README.md (Route 53, App Runner, ECR, DynamoDB, S3, Lambda, CI/CD).
+Con esto tienes cumplidos los apartados de aplicación web y despliegue en la nube; ahora queda completar los workflows CI/CD, las funciones serverless de refresco/calculo diario y la mejora de la UI y arquitectura.
+
+
+Lo que podemo usar y desarrollamso 
+
+me parece bien el planteamiento
+
+que partes de las que ya tenemos hechas nos sirven?
+
+Estas son las piezas que ya tienes y que podemos reaprovechar para cada uno de los puntos de nuestro roadmap:
+​El scraper de MEFF (scraper/meff_scraper.py)
+La función scrape_all_dates_selenium y sus utilidades (setup_driver, accept_cookies, parse_tables_from_html) nos sirven como base para la Lambda de scraping diario.
+​La lógica de cálculo de IV (calculate_iv_from_csv.py)
+Esa rutina que lee un CSV y usa Mibian (o la implementación propia) la podemos extraer a la función que, a partir de nuevos datos, calcule volatilidad y la vuelque en DynamoDB.
+​Los scripts de exportación (export_raw_data.py y export_iv.py)
+Actualmente vuelcan en CSV; los adaptaremos para que inserten directamente en las tablas DynamoDB RawPrices y ImpliedVols.
+​La app Streamlit de smile (app/iv_smile_app.py junto con plotting.py y data_processing.py)
+Su UI, selección de fechas y gráficas de “smile” ya están montadas. Solo tendremos que cambiar el origen de datos (de CSV sobre disco a consultas a DynamoDB o a nuestro nuevo API).
+​La infra actual en Terraform (infra/main.tf + variables.tf)
+Ya tienes un S3 y una DynamoDB genérica. La extenderemos:
+• Crear dos tablas más: RawPrices e ImpliedVols.
+• Añadir recursos de Lambda (scraper + cálculo IV).
+• Conectar triggers (DynamoDB Stream → Lambda de IV).
+• Crear API Gateway + Lambda para consultas desde la UI.
+​Dockerfile y docker-compose.yml
+Sirven para empaquetar y levantar localmente la app web; los conservamos tal cual y solo apuntamos la app a la nueva fuente de datos.
+​El workflow CI/CD existente (en .github/workflows/)
+Podemos extenderlo con un job que despliegue las Lambdas y haga terraform apply sobre la nueva infra.
+​Requirements.txt y configuración de virtualenv
+Todo el entorno Python y dependencias (selenium, pandas, mibian, boto3, streamlit…) ya está definido y sólo habrá que asegurarse de incluir boto3 y aws-lambda-powertools (o similares) para las funciones.
+En resumen:
+– Reutilizamos el scraper y la lógica de IV.
+– Adaptamos los scripts de exportación para volcar en DynamoDB.
+– Amplíamos Terraform con las tablas y Lambdas nuevas.
+– Apuntamos la app y el CI/CD a la nueva infra.
