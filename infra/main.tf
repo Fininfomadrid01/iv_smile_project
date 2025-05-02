@@ -42,4 +42,25 @@ resource "aws_dynamodb_table" "data_table" {
     Name        = var.dynamodb_table_name
     Environment = var.environment
   }
+}
+
+# Repositorio ECR para la aplicación
+resource "aws_ecr_repository" "app" {
+  name = var.ecr_repo_name
+}
+
+# Outputs de la infraestructura
+output "s3_bucket_id" {
+  value       = aws_s3_bucket.data_bucket.id
+  description = "Nombre/ID del bucket S3 creado"
+}
+
+output "dynamodb_table_name" {
+  value       = aws_dynamodb_table.data_table.name
+  description = "Nombre de la tabla DynamoDB creada"
+}
+
+output "ecr_repo_url" {
+  value       = aws_ecr_repository.app.repository_url
+  description = "URL del repositorio ECR creado"
 } 
