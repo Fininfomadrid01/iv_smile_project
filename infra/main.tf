@@ -49,7 +49,7 @@ resource "aws_ecr_repository" "app" {
   name = var.ecr_repo_name
 }
 
-# Permisos para que App Runner lea de ECR
+# Permisos para que App Runner lea del repositorio ECR
 resource "aws_iam_role" "apprunner_ecr_access" {
   name = "${var.app_runner_service_name}-ecr-access"
   assume_role_policy = jsonencode({
@@ -65,20 +65,20 @@ resource "aws_iam_role" "apprunner_ecr_access" {
 resource "aws_iam_role_policy" "apprunner_ecr_policy" {
   role   = aws_iam_role.apprunner_ecr_access.name
   policy = jsonencode({
-    Version = "2012-10-17",
+    Version = "2012-10-17"
     Statement = [
       {
-        Effect   = "Allow",
+        Effect   = "Allow"
         Action   = [
           "ecr:GetDownloadUrlForLayer",
           "ecr:BatchGetImage",
           "ecr:BatchCheckLayerAvailability"
-        ],
+        ]
         Resource = aws_ecr_repository.app.arn
       },
       {
-        Effect   = "Allow",
-        Action   = ["ecr:GetAuthorizationToken"],
+        Effect   = "Allow"
+        Action   = ["ecr:GetAuthorizationToken"]
         Resource = "*"
       }
     ]
@@ -90,9 +90,14 @@ resource "aws_apprunner_service" "app" {
   service_name = var.app_runner_service_name
 
   source_configuration {
+    authentication_configuration {
+      access_role_arn = aws_iam_role.apprunner_ecr_access.arn
+    }
+
     image_repository {
       image_identifier      = "${aws_ecr_repository.app.repository_url}:latest"
       image_repository_type = "ECR"
+      image_configuration { port = "8501" }
     }
   }
 
@@ -109,7 +114,7 @@ resource "aws_apprunner_service" "app" {
 # Outputs de la infraestructura
 output "s3_bucket_id" {
   value       = aws_s3_bucket.data_bucket.id
-  description = "Nombre/ID del bucket S3 creado"
+  description = "ID del bucket S3 creado"
 }
 
 output "dynamodb_table_name" {
@@ -122,8 +127,7 @@ output "ecr_repo_url" {
   description = "URL del repositorio ECR creado"
 }
 
-# Output con la URL pública de App Runner
 output "app_url" {
   value       = aws_apprunner_service.app.service_url
-  description = "URL pública del servicio App Runner"
-} 
+  description = "URL pública de App Runner"
+}
