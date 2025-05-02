@@ -1,0 +1,13 @@
+.git/
+.github/
+infra/
+*.tfstate*
+.terraform/
+debug*
+tests/
+*.pyc
+__pycache__/
+*.log
+output/
+*.csv
+.env 
