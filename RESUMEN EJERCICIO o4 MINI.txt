@@ -126,3 +126,125 @@ En resumen:
 – Adaptamos los scripts de exportación para volcar en DynamoDB.
 – Amplíamos Terraform con las tablas y Lambdas nuevas.
 – Apuntamos la app y el CI/CD a la nueva infra.
+
+
+03/05/2025
+
+¡Genial! Ya tienes toda la infraestructura levantada y correctamente importada:
+El bucket S3 (iv-smile-data)
+Las tablas DynamoDB (dev-raw-prices, dev-implied-vols, iv-smile-metadata)
+Las Lambdas (dev-scraper-lambda y dev-iv-lambda)
+El Event Source Mapping de DynamoDB Streams → Lambda
+El servicio App Runner (iv-smile-service)
+Próximos pasos recomendados:
+
+Probar manualmente tus Lambdas
+Invoca la Lambda de scraper para asegurarte de que grava datos en dev-raw-prices:
+
+Verificar cálculo de IV
+Cuando entren nuevos registros en raw-prices, la Lambda de cálculo (dev-iv-lambda) se disparará automáticamente vía Streams y deberá poblar la tabla dev-implied-vols.
+Puedes revisar el estado de ejecuciones con CloudWatch Logs.
+
+Programar ejecución diaria
+Usa EventBridge (CloudWatch Events) para lanzar tu scraper Lambda cada día a la hora deseada. Ejemplo de regla cron en Terraform:
+
+Conectar tu front-end (App Runner)
+Accede a la URL que te devolvió Terraform (app_url) para comprobar tu aplicación Streamlit o API.
+Modifica la app para que en vez de leer CSV consulte DynamoDB (usando boto3 o AWS SDK).
+
+Monitoreo y alertas
+Configura métricas y avisos en CloudWatch:
+Fallos de Lambda
+Errores 5xx en App Runner
+Crecimiento del tamaño de las tablas
+
+Versionado y despliegue contínuo
+Integra tu pipeline de GitHub Actions para:
+Empaquetar y subir tu código Lambda a S3/ECR
+Ejecutar terraform fmt, terraform validate y terraform apply
+Desplegar cambios en App Runner
+
+
+03/05/2025 13:01
+
+quí tienes un resumen de lo que ya hemos configurado y los pasos que quedan pendientes:
+1) Infraestructura AWS (Terraform)
+• S3
+– Bucket iv-smile-data creado y versioning habilitado.
+• DynamoDB
+– Tabla dev-raw-prices (Stream ENABLED)
+– Tabla dev-implied-vols
+– Tabla iv-smile-metadata (para metadatos de la app)
+• IAM
+– Rol dev-lambda-exec con políticas básicas de Lambda
+– Política “lambda-dynamodb-policy” extendida con permisos de Streams
+– Rol y política para App Runner (iv-smile-service-ecr-access)
+• Lambda Functions
+– dev-scraper-lambda empaquetada con Selenium, scraper y dependencias (módulo scraper/). Timeout 30 s, 512 MB.
+– dev-iv-lambda empaquetada con mibian y pandas vendorizados. Timeout 30 s, 512 MB.
+• DynamoDB Streams → Lambda
+– Event source mapping raw_to_iv habilitado y funcionando.
+• ECR y App Runner
+– Repositorio ECR iv-smile-app creado.
+– Servicio App Runner iv-smile-service configurado para desplegar la app desde ECR.
+• Estado Terraform
+– Todos los recursos importados al estado para eliminar conflictos de “ya existe”.
+2) Pruebas realizadas
+– Insertar ítems manualmente en dev-raw-prices y verificar en consola AWS CLI.
+– Probar invocaciones directas de cada Lambda (scraper e iv), confirmando respuestas 200.
+– Verificar que la Lambda de IV procesa eventos de prueba (test_event.json) y escribe iv en DynamoDB.
+– Revisar logs en CloudWatch para detectar timeouts o errores de importación de módulos.
+3) Pendientes por hacer
+a) Programar ejecución diaria del scraper
+– Añadir regla EventBridge (cron) y permiso Lambda para invocación automática.
+b) Conectar la app front-end (Streamlit/App Runner) a DynamoDB
+– Sustituir lectura de CSV por consultas a DynamoDB (boto3).
+– Gestionar paginación y filtros por fecha.
+c) Exponer API para consulta de IVs
+– Crear Lambda + API Gateway REST/HTTP que devuelva JSON con iv por fecha/strike.
+d) UI / UX
+– Añadir selectores de fecha múltiples para comparar “skews” de distintos días.
+– Visualizar curvas de volatilidad con Plotly o D3.js.
+– Opcional: dibujo de superficie 3D de volatilidad sobre strike y tiempo.
+e) CI/CD
+– GitHub Actions para:
+Empaquetar y subir Lambdas a S3/ECR.
+Ejecutar terraform fmt/validate/plan/apply.
+– Despliegue automático de la aplicación en App Runner.
+f) Monitoreo y alertas
+– CloudWatch Alarms para fallos de Lambda y métricas de latencia.
+– Dashboard de logs y métricas.
+g) Documentación y tests
+– Tests unitarios para funciones Python (pytest).
+– Documentar endpoints de la API y flujos de datos.
+Con esto tienes una hoja de ruta clara de todo lo que ya funciona y lo que falta para completar tu solución de scraping, cálculo de volatilidad y visualización. ¡Dime en cuál de los puntos quieres que nos enfoquemos ahora!
+
+
+
+
+aws iam put-user-policy `
+  --user-name sam-deploy-user `
+  --policy-name AllowGetSciPyLayer `
+  --policy-document '{
+    "Version": "2012-10-17",
+    "Statement": [
+      {
+        "Effect": "Allow",
+        "Action": "lambda:GetLayerVersion",
+        "Resource": "arn:aws:lambda:us-east-1:464415288776:layer:Klayers-python39-scipy:40"
+      }
+    ]
+  }'
+
+
+
+aws iam put-user-policy `
+  --user-name sam-deploy-user `
+  --policy-name AllowGetSciPyLayer `
+  --policy-document file://allow_scipy_layer.json
+
+aws iam put-user-policy --user-name sam-deploy-user --policy-name AllowGetSciPyLayer --policy-document file://allow_scipy_layer.json
+
+   aws iam attach-user-policy `
+     --user-name sam-deploy-user `
+     --policy-arn arn:aws:iam::aws:policy/AWSLambda_ReadOnlyAccess

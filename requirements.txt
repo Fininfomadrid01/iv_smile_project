@@ -7,3 +7,4 @@ selenium
 lxml
 scipy
 plotly
+boto3

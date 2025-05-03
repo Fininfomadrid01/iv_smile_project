@@ -1,4 +1,3 @@
-
 import os
 import sys
 
@@ -32,55 +31,36 @@ else:
     st.sidebar.error("No existe la carpeta 'output' con CSVs.")
 
 # --------------------------------------------------
-# Función para cargar y limpiar los CSV
+# Función para cargar datos de IV directamente desde DynamoDB en lugar de CSV
 # --------------------------------------------------
 def load_csv_iv():
+    import boto3
+    from boto3.dynamodb.conditions import Key
+    # Inicializar cliente DynamoDB
+    dynamodb = boto3.resource("dynamodb")
+    table = dynamodb.Table("dev-implied-vols")
+
+    # Escanear todos los ítems de la tabla
+    response = table.scan()
+    items = response.get("Items", [])
+
+    # Crear diccionarios para Calls y Puts
     calls_iv = {}
     puts_iv  = {}
-    if not os.path.isdir(OUTPUT_DIR):
-        return calls_iv, puts_iv
+    for item in items:
+        date = item.get("date")
+        type_op = item.get("type")
+        strike = float(item.get("strike"))
+        iv = float(item.get("iv"))
 
-    for fname in sorted(os.listdir(OUTPUT_DIR)):
-        if not fname.endswith(".csv"):
-            continue
-        path = os.path.join(OUTPUT_DIR, fname)
+        if type_op == "calls":
+            calls_iv.setdefault(date, []).append({"Strike": strike, "IV": iv})
+        elif type_op == "puts":
+            puts_iv .setdefault(date, []).append({"Strike": strike, "IV": iv})
 
-        # Determinar tipo y fecha
-        if fname.startswith("calls_iv_"):
-            key   = "calls"
-            fecha = fname[len("calls_iv_"):-4].replace("-", "/")
-        elif fname.startswith("puts_iv_"):
-            key   = "puts"
-            fecha = fname[len("puts_iv_"):-4].replace("-", "/")
-        else:
-            continue
-
-        # Leer CSV europeo: sep=',' miles='.' decimal=','
-        df = pd.read_csv(path, sep=",", thousands=".", decimal=",")
-        df.columns = df.columns.str.strip()
-
-        # Quitar fila de 'Volumen Total' si existe
-        if "Strike" in df.columns:
-            mask = df["Strike"].astype(str).str.lower() != "volumen total"
-            df   = df[mask]
-
-        # Requerir columnas Strike e IV
-        if "Strike" not in df.columns or "IV" not in df.columns:
-            continue
-
-        # Convertir a numérico
-        df["Strike"] = pd.to_numeric(df["Strike"], errors="coerce")
-        df["IV"]     = pd.to_numeric(df["IV"], errors="coerce")
-
-        # Eliminar filas con NaN
-        df = df.dropna(subset=["Strike", "IV"]).reset_index(drop=True)
-
-        # Almacenar
-        if key == "calls":
-            calls_iv[fecha] = df
-        else:
-            puts_iv[fecha]   = df
-
+    # Convertir listas a DataFrames
+    calls_iv = {d: pd.DataFrame(data) for d, data in calls_iv.items()}
+    puts_iv  = {d: pd.DataFrame(data) for d, data in puts_iv.items()}
     return calls_iv, puts_iv
 
 # --------------------------------------------------
