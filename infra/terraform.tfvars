@@ -1,0 +1,6 @@
+﻿ecr_repo_name           = "iv-smile-app"
+app_runner_service_name = "iv-smile-service"
+s3_bucket_name          = "iv-smile-data"
+dynamodb_table_name     = "iv-smile-metadata"
+environment             = "dev"
+aws_region              = "us-east-1"
