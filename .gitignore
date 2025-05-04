@@ -83,4 +83,10 @@ dmypy.json
 .Spotlight-V100
 .Trashes
 ehthumbs.db
-Thumbs.db 
+Thumbs.db
+
+# Terraform infra
+/infra/*.zip
+/infra/terraform.tfstate*
+/infra/tfplan
+/infra/.terraform/
