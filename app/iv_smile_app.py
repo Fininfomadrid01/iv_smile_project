@@ -15,20 +15,10 @@ st.set_page_config(page_title="IV Smile", layout="wide")
 st.title("Volatilidad Implícita – Smile de Opciones")
 
 # --------------------------------------------------
-# Paths
+# Sidebar de debug de datos cargados desde DynamoDB
 # --------------------------------------------------
-BASE_DIR   = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
-OUTPUT_DIR = os.path.join(BASE_DIR, "output")
-
-# --------------------------------------------------
-# Sidebar de debug
-# --------------------------------------------------
-st.sidebar.header("Debug: CSV disponibles")
-st.sidebar.write("Carpeta CSV:", OUTPUT_DIR)
-if os.path.isdir(OUTPUT_DIR):
-    st.sidebar.write(sorted(os.listdir(OUTPUT_DIR)))
-else:
-    st.sidebar.error("No existe la carpeta 'output' con CSVs.")
+st.sidebar.header("Debug: Fechas de IV cargadas")
+# Se actualizará tras cargar los datos
 
 # --------------------------------------------------
 # Función para cargar datos de IV directamente desde DynamoDB en lugar de CSV
@@ -68,10 +58,12 @@ def load_csv_iv():
 # --------------------------------------------------
 calls_iv, puts_iv = load_csv_iv()
 
+# Mostrar en sidebar las fechas disponibles cargadas
+st.sidebar.write(sorted(calls_iv.keys()))
 # Fechas disponibles (solo las que tienen datos en calls)
 fechas = sorted([d for d, df in calls_iv.items() if not df.empty])
 if not fechas:
-    st.error("No se han encontrado datos de IV en los CSV.")
+    st.error("No se han encontrado datos de IV en DynamoDB.")
     st.stop()
 
 # --------------------------------------------------

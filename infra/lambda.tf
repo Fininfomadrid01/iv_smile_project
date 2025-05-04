@@ -96,29 +96,14 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attach" {
 # 3) Lambdas: Scraper y Cálculo de IV
 ############################################################
 
-data "archive_file" "scraper_zip" {
-  type        = "zip"
-  source_dir  = "../../lambda"  # Empaqueta solo lambda/, que debe incluir scraper/ y scraper_lambda.py
-  output_path = "${path.module}/scraper_lambda.zip"
-}
-
-data "archive_file" "iv_zip" {
-  type        = "zip"
-  source_dir  = "../../lambda"  # Empaqueta solo lambda/, que debe incluir iv_lambda.py
-  output_path = "${path.module}/iv_lambda.zip"
-}
-
+// Lambda Scraper en modo contenedor
 resource "aws_lambda_function" "scraper" {
-  function_name    = "${var.environment}-scraper-lambda"
-  handler          = "scraper_lambda.lambda_handler"
-  runtime          = "python3.9"
-  role             = aws_iam_role.lambda_exec.arn
-
-  timeout          = 30
-  memory_size      = 512
-
-  filename         = data.archive_file.scraper_zip.output_path
-  source_code_hash = data.archive_file.scraper_zip.output_base64sha256
+  function_name = var.scraper_lambda_name
+  package_type  = "Image"
+  image_uri     = "${aws_ecr_repository.app.repository_url}:scraper-latest"
+  role          = aws_iam_role.lambda_exec.arn
+  timeout       = 30
+  memory_size   = 512
 
   environment {
     variables = {
@@ -127,14 +112,12 @@ resource "aws_lambda_function" "scraper" {
   }
 }
 
+// Lambda IV Calc en modo contenedor
 resource "aws_lambda_function" "iv_calc" {
-  function_name    = "${var.environment}-iv-lambda"
-  handler          = "iv_lambda.lambda_handler"
-  runtime          = "python3.9"
-  role             = aws_iam_role.lambda_exec.arn
-
-  filename         = data.archive_file.iv_zip.output_path
-  source_code_hash = data.archive_file.iv_zip.output_base64sha256
+  function_name = var.iv_lambda_name
+  package_type  = "Image"
+  image_uri     = "${aws_ecr_repository.app.repository_url}:iv-latest"
+  role          = aws_iam_role.lambda_exec.arn
 
   environment {
     variables = {
