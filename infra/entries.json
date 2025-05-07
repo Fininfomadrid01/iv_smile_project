@@ -1,0 +1,10 @@
+[
+    {
+      "Source": "aws.events",
+      "DetailType": "Scheduled Event",
+      "Detail": "{}",
+      "Resources": [
+        "arn:aws:events:us-east-1:797161732660:rule/dev-daily-scraper"
+      ]
+    }
+  ]

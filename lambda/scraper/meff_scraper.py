@@ -9,20 +9,25 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException, NoSuchElementException
 from selenium.webdriver.support.ui import Select
+from selenium.webdriver.chrome.service import Service
 
-MEFF_URL = "https://www.meff.es/esp/Derivados-Financieros/Ficha/FIEM_MiniIbex_35"
+MEFF_URL = "https://www.meff.es/esp/Derivados-Financieros/Ficha/FIEM_MiniIbex_35.aspx"
 
 def setup_driver() -> webdriver.Chrome:
     """Inicializa y devuelve un WebDriver de Chrome para Selenium."""
     options = webdriver.ChromeOptions()
-    # options.add_argument("--headless")  # Descomentar para modo headless
+    options.add_argument("--headless")
     options.add_argument("--no-sandbox")
     options.add_argument("--disable-dev-shm-usage")
+    options.add_argument("--disable-gpu")
     options.add_argument('--log-level=3')
     options.set_capability('goog:loggingPrefs', {'browser': 'ALL'})
+    # Especificar ubicación de Chrome y Chromedriver
+    options.binary_location = "/usr/bin/google-chrome"
     try:
         print("Inicializando Chrome WebDriver...")
-        driver = webdriver.Chrome(options=options)
+        service = Service("/usr/local/bin/chromedriver")
+        driver = webdriver.Chrome(service=service, options=options)
         print("WebDriver inicializado.")
         return driver
     except Exception as e:

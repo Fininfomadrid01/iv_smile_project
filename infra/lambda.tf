@@ -96,14 +96,24 @@ resource "aws_iam_role_policy_attachment" "lambda_dynamodb_attach" {
 # 3) Lambdas: Scraper y Cálculo de IV
 ############################################################
 
+data "aws_ecr_image" "scraper" {
+  repository_name = aws_ecr_repository.app.name
+  image_tag       = "scraper-latest"
+}
+
+data "aws_ecr_image" "iv_calc" {
+  repository_name = aws_ecr_repository.app.name
+  image_tag       = "iv-latest"
+}
+
 // Lambda Scraper en modo contenedor
 resource "aws_lambda_function" "scraper" {
   function_name = var.scraper_lambda_name
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.app.repository_url}:scraper-latest"
+  image_uri     = "${aws_ecr_repository.app.repository_url}@${data.aws_ecr_image.scraper.image_digest}"
   role          = aws_iam_role.lambda_exec.arn
-  timeout       = 30
-  memory_size   = 512
+  timeout       = 900
+  memory_size   = 2048
 
   environment {
     variables = {
@@ -116,7 +126,7 @@ resource "aws_lambda_function" "scraper" {
 resource "aws_lambda_function" "iv_calc" {
   function_name = var.iv_lambda_name
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.app.repository_url}:iv-latest"
+  image_uri     = "${aws_ecr_repository.app.repository_url}@${data.aws_ecr_image.iv_calc.image_digest}"
   role          = aws_iam_role.lambda_exec.arn
 
   environment {
@@ -125,6 +135,9 @@ resource "aws_lambda_function" "iv_calc" {
       IV_TABLE_NAME  = aws_dynamodb_table.implied_vols.name
     }
   }
+
+  timeout       = 120
+  memory_size   = 512
 }
 
 ############################################################

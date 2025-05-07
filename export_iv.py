@@ -1,13 +1,10 @@
 import os
-from scraper.scrape_all_dates_full import scrape_all_dates_full
-from scraper.volatility import calculate_iv_all
+from app.iv_smile_app import csv_scraping
 import pandas as pd
 
 if __name__ == "__main__":
-    # 1) Scrape all dates
-    futures, calls, puts = scrape_all_dates_full()
-    # 2) Calculate implied volatility
-    calls_iv, puts_iv = calculate_iv_all(futures, calls, puts)
+    # Scrape IV directly via CSV
+    calls_iv, puts_iv = csv_scraping()
 
     # Ensure output directory exists
     output_dir = "output"
