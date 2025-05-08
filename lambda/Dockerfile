@@ -16,6 +16,7 @@ COPY scraper ./scraper/
 # Copiar los entry-points
 COPY scraper_lambda.py .
 COPY iv_lambda.py .
+COPY scraper_futuros_lambda.py .
 
 # Handler de arranque
-CMD ["scraper_lambda.lambda_handler"]
+CMD ["scraper_futuros_lambda.lambda_handler"]

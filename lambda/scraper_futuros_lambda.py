@@ -2,9 +2,9 @@ import os
 import json
 import boto3
 from decimal import Decimal
-from scraper.meff_scraper_classes import MiniIbexFuturosScraper, MiniIbexOpcionesScraper
+from scraper.meff_scraper_classes import MiniIbexFuturosScraper
 
-print("[DEBUG] Imports realizados correctamente")
+print("[DEBUG] Imports realizados correctamente (futuros)")
 
 def decimal_default(obj):
     if isinstance(obj, Decimal):
@@ -12,12 +12,11 @@ def decimal_default(obj):
     raise TypeError
 
 def lambda_handler(event, context):
-    print("=== INICIO LAMBDA ===")
+    print("=== INICIO LAMBDA FUTUROS ===")
     """
-    Lambda que realiza el scraping de futuros y opciones con BeautifulSoup
+    Lambda que realiza el scraping de futuros con BeautifulSoup
     y almacena los resultados en la tabla DynamoDB indicada en RAW_TABLE_NAME.
     """
-    # Scraping de futuros
     print("[DEBUG] Iniciando scraping de futuros...")
     futuros_scraper = MiniIbexFuturosScraper()
     print("[DEBUG] Antes del try de futuros")
@@ -33,16 +32,6 @@ def lambda_handler(event, context):
         print(f"Error extrayendo futuros: {e}")
         print(traceback.format_exc())
         df_futuros = None
-
-    # Scraping de opciones
-    print("[DEBUG] Iniciando scraping de opciones...")
-    opciones_scraper = MiniIbexOpcionesScraper()
-    try:
-        df_opciones = opciones_scraper.obtener_opciones()
-        print(f"Opciones extraídas:\n{df_opciones}")
-    except Exception as e:
-        print(f"Error extrayendo opciones: {e}")
-        df_opciones = None
 
     # Conexión a DynamoDB
     dynamodb = boto3.resource('dynamodb')
@@ -64,22 +53,7 @@ def lambda_handler(event, context):
     else:
         print("[DEBUG] No se guardaron futuros (DataFrame vacío o None)")
 
-    # Guardar opciones
-    if df_opciones is not None and not df_opciones.empty:
-        with raw_table.batch_writer() as batch:
-            for _, row in df_opciones.iterrows():
-                item = {
-                    'id': f"{row['fecha_venc']}#{row['tipo_opcion'].lower()}#{row['strike']}",
-                    'date': str(row['fecha_venc']),
-                    'type': row['tipo_opcion'].lower(),
-                    'strike': Decimal(str(row['strike'])),
-                    'price': Decimal(str(row['precio'])),
-                    'dias_vto': int(row['dias_vto'])
-                }
-                print(f"Guardando opción: {item}")
-                batch.put_item(Item=item)
-
     return {
         "statusCode": 200,
-        "body": json.dumps({"message": "Scraping y guardado completados"}, default=decimal_default)
-    }
+        "body": json.dumps({"message": "Scraping y guardado de futuros completados"}, default=decimal_default)
+    } 
