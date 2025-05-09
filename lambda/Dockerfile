@@ -18,5 +18,8 @@ COPY scraper_lambda.py .
 COPY iv_lambda.py .
 COPY scraper_futuros_lambda.py .
 
+# Copia el handler de la API
+COPY api_handler.py .
+
 # Handler de arranque
-CMD ["scraper_futuros_lambda.lambda_handler"]
+CMD ["api_handler.lambda_handler"]

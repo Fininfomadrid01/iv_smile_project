@@ -2,13 +2,34 @@ import os
 import json
 import boto3
 from decimal import Decimal
-import mibian
+import numpy as np
+from scipy.stats import norm
+from scipy.optimize import brentq
 
 # Cliente DynamoDB
-dynamodb = boto3.resource('dynamodb')
-raw_table = os.environ['RAW_TABLE_NAME']
-iv_table = os.environ['IV_TABLE_NAME']
+futuros_table = boto3.resource('dynamodb').Table('futuros-table')  # Buscar futuros solo por fecha
+db_iv_table = boto3.resource('dynamodb').Table(os.environ['IV_TABLE_NAME'])
 
+def black_scholes_call(S, K, T, r, sigma):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    return S * norm.cdf(d1) - K * np.exp(-r * T) * norm.cdf(d2)
+
+def black_scholes_put(S, K, T, r, sigma):
+    d1 = (np.log(S / K) + (r + 0.5 * sigma ** 2) * T) / (sigma * np.sqrt(T))
+    d2 = d1 - sigma * np.sqrt(T)
+    return K * np.exp(-r * T) * norm.cdf(-d2) - S * norm.cdf(-d1)
+
+def implied_volatility(option_price, S, K, T, r, tipo='call'):
+    def objective(sigma):
+        if tipo == 'call':
+            return black_scholes_call(S, K, T, r, sigma) - option_price
+        else:
+            return black_scholes_put(S, K, T, r, sigma) - option_price
+    try:
+        return brentq(objective, 1e-6, 5)
+    except Exception:
+        return None
 
 def lambda_handler(event, context):
     """
@@ -19,37 +40,46 @@ def lambda_handler(event, context):
             continue
 
         new_img = record['dynamodb']['NewImage']
-        # Extraer datos raw
-        date = new_img['date']['S']
+        date = new_img['date']['S']  # Asegúrate de que el formato sea igual al de futuros-table
         type_op = new_img['type']['S']
-        strike = float(new_img['strike']['N'])
-        last_price = float(new_img['last_price']['N'])
 
-        # Solo calls y puts
+        # Comprobación de campos obligatorios
+        if 'strike' not in new_img or 'price' not in new_img:
+            print(f"Registro ignorado por falta de campos: {new_img}")
+            continue
+        strike = float(new_img['strike']['N'])
+        last_price = float(new_img['price']['N'])
+
         if type_op not in ['calls', 'puts']:
             continue
 
-        # Leer precio futuro para la misma fecha
-        table = dynamodb.Table(raw_table)
-        future_id = f"{date}#futures#{strike}"
-        fut_item = table.get_item(Key={'id': future_id}).get('Item')
+        # Buscar el futuro solo por fecha
+        future_id = f"{date}#futures"
+        fut_item = futuros_table.get_item(Key={'id': future_id}).get('Item')
         if not fut_item:
-            print(f"No se encontró futuro para {date} y strike {strike}")
+            print(f"No se encontró futuro para {date}")
             continue
         future_price = float(fut_item['last_price'])
 
-        # Calcular días hasta expiración: parse fecha dd/mm/YYYY → fecha
-        # Suponemos date en formato DD/MM/YYYY
-        dd, mm, yyyy = date.split('/')
-        expiration = f"{dd}/{mm}/{yyyy}"
-
-        # Calcular IV con mibian
-        tasa = 0  # asumimos 0% rate
-        iv = mibian.BS([future_price, strike, tasa, expiration], callPrice=last_price).impliedVolatility
-        iv = round(iv / 100, 4)
+        # Calcular IV con Black-Scholes y Scipy
+        T = 30/365  # O ajusta con el valor real de días a vencimiento
+        r = 0
+        tipo = 'call' if type_op == 'calls' else 'put'
+        iv = implied_volatility(
+            option_price=last_price,
+            S=future_price,
+            K=strike,
+            T=T,
+            r=r,
+            tipo=tipo
+        )
+        if iv is not None:
+            iv = round(iv, 4)
+        else:
+            print(f"No se pudo calcular IV para {date}, strike {strike}")
+            continue
 
         # Guardar IV en DynamoDB
-        iv_tab = dynamodb.Table(iv_table)
         item = {
             'id': f"{date}#{type_op}#{strike}",
             'date': date,
@@ -57,6 +87,6 @@ def lambda_handler(event, context):
             'strike': Decimal(str(strike)),
             'iv': Decimal(str(iv))
         }
-        iv_tab.put_item(Item=item)
+        db_iv_table.put_item(Item=item)
 
     return {'statusCode': 200, 'body': json.dumps({'message': 'IV calculada y guardada'})} 

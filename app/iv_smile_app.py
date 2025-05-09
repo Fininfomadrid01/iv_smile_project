@@ -8,6 +8,7 @@ import datetime
 import streamlit as st
 import plotly.graph_objects as go
 import mibian
+import json
 
 # Para poder importar el paquete 'scraper' si existe un nivel arriba
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -47,8 +48,33 @@ df_futures_static = load_debug_futures()
 # --------------------------------------------------
 # Scraping dinámico de MEFF con las clases
 # --------------------------------------------------
-opciones_df = MiniIbexOpcionesScraper().obtener_opciones()
-futuros_df = MiniIbexFuturosScraper().obtener_futuros()
+url_opciones = "https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/opciones"
+response_opciones = requests.get(url_opciones)
+data_opciones = response_opciones.json()
+print("Respuesta de opciones:", data_opciones)
+st.write("Respuesta de opciones:", data_opciones)
+
+# Opciones
+if isinstance(data_opciones, dict) and 'body' in data_opciones:
+    opciones_df = pd.DataFrame(json.loads(data_opciones['body']))
+elif isinstance(data_opciones, list):
+    opciones_df = pd.DataFrame(data_opciones)
+else:
+    opciones_df = pd.DataFrame()
+
+url_futuros = "https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/futuros"
+response_futuros = requests.get(url_futuros)
+data_futuros = response_futuros.json()
+print("Respuesta de futuros:", data_futuros)
+st.write("Respuesta de futuros:", data_futuros)
+
+# Futuros
+if isinstance(data_futuros, dict) and 'body' in data_futuros:
+    futuros_df = pd.DataFrame(json.loads(data_futuros['body']))
+elif isinstance(data_futuros, list):
+    futuros_df = pd.DataFrame(data_futuros)
+else:
+    futuros_df = pd.DataFrame()
 
 # Agrupar opciones por fecha y tipo
 fechas = sorted(opciones_df['fecha_venc'].unique())

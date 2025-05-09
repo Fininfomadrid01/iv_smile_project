@@ -126,7 +126,7 @@ resource "aws_lambda_function" "scraper" {
 resource "aws_lambda_function" "iv_calc" {
   function_name = var.iv_lambda_name
   package_type  = "Image"
-  image_uri     = "${aws_ecr_repository.app.repository_url}@${data.aws_ecr_image.iv_calc.image_digest}"
+  image_uri     = "797161732660.dkr.ecr.us-east-1.amazonaws.com/iv-smile-app:iv-lambda"
   role          = aws_iam_role.lambda_exec.arn
 
   environment {
@@ -138,6 +138,53 @@ resource "aws_lambda_function" "iv_calc" {
 
   timeout       = 120
   memory_size   = 512
+}
+
+// Lambda dev-api-lambda en modo contenedor
+resource "aws_lambda_function" "dev_api_lambda" {
+  function_name = "dev-api-lambda"
+  package_type  = "Image"
+  image_uri     = "797161732660.dkr.ecr.us-east-1.amazonaws.com/iv-smile-app:iv-api"
+  role          = aws_iam_role.lambda_exec.arn
+  timeout       = 60
+  memory_size   = 512
+
+  environment {
+    variables = {
+      RAW_TABLE_NAME = aws_dynamodb_table.raw_prices.name
+      # Agrega aquí otras variables de entorno si las necesitas
+    }
+  }
+}
+
+resource "aws_lambda_function" "scraper_futuros" {
+  function_name = "scraper-futuros-lambda"
+  package_type  = "Image"
+  image_uri     = "797161732660.dkr.ecr.us-east-1.amazonaws.com/iv-smile-app:futuros-lambda"
+  role          = aws_iam_role.lambda_exec.arn
+  timeout       = 900
+  memory_size   = 2048
+
+  environment {
+    variables = {
+      RAW_TABLE_NAME = aws_dynamodb_table.raw_prices.name
+    }
+  }
+}
+
+resource "aws_lambda_function" "scraper_v2" {
+  function_name = "dev-scraper-lambda-v2"
+  package_type  = "Image"
+  image_uri     = "797161732660.dkr.ecr.us-east-1.amazonaws.com/iv-smile-app:opciones-lambda"
+  role          = aws_iam_role.lambda_exec.arn
+  timeout       = 900
+  memory_size   = 2048
+
+  environment {
+    variables = {
+      RAW_TABLE_NAME = aws_dynamodb_table.raw_prices.name
+    }
+  }
 }
 
 ############################################################
