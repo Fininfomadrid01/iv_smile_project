@@ -51,110 +51,170 @@ df_futures_static = load_debug_futures()
 url_opciones = "https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/opciones"
 response_opciones = requests.get(url_opciones)
 data_opciones = response_opciones.json()
-print("Respuesta de opciones:", data_opciones)
-st.write("Respuesta de opciones:", data_opciones)
 
-# Opciones
-if isinstance(data_opciones, dict) and 'body' in data_opciones:
+if (
+    isinstance(data_opciones, dict)
+    and 'body' in data_opciones
+    and data_opciones.get('statusCode', 200) == 200
+):
     opciones_df = pd.DataFrame(json.loads(data_opciones['body']))
 elif isinstance(data_opciones, list):
     opciones_df = pd.DataFrame(data_opciones)
 else:
     opciones_df = pd.DataFrame()
+    st.error(f"Error al obtener opciones: {data_opciones.get('body', data_opciones)}")
+
+# Botón para descargar los datos scrapeados de opciones como CSV
+if not opciones_df.empty:
+    st.download_button(
+        label="Descargar opciones scrapeadas (CSV)",
+        data=opciones_df.to_csv(index=False).encode('utf-8'),
+        file_name='opciones_scrapeadas.csv',
+        mime='text/csv'
+    )
+    st.download_button(
+        label="Descargar opciones scrapeadas (JSON)",
+        data=opciones_df.to_json(orient='records', force_ascii=False, indent=2).encode('utf-8'),
+        file_name='opciones_scrapeadas.json',
+        mime='application/json'
+    )
 
 url_futuros = "https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/futuros"
 response_futuros = requests.get(url_futuros)
 data_futuros = response_futuros.json()
-print("Respuesta de futuros:", data_futuros)
-st.write("Respuesta de futuros:", data_futuros)
 
-# Futuros
-if isinstance(data_futuros, dict) and 'body' in data_futuros:
+# Consulta a la API de IV
+url_iv = "https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/iv"
+response_iv = requests.get(url_iv)
+data_iv = response_iv.json()
+
+if (
+    isinstance(data_iv, dict)
+    and 'body' in data_iv
+    and data_iv.get('statusCode', 200) == 200
+):
+    iv_df = pd.DataFrame(json.loads(data_iv['body']))
+elif isinstance(data_iv, list):
+    iv_df = pd.DataFrame(data_iv)
+else:
+    iv_df = pd.DataFrame()
+    st.error(f"Error al obtener IV: {data_iv.get('body', data_iv)}")
+
+if (
+    isinstance(data_futuros, dict)
+    and 'body' in data_futuros
+    and data_futuros.get('statusCode', 200) == 200
+):
     futuros_df = pd.DataFrame(json.loads(data_futuros['body']))
 elif isinstance(data_futuros, list):
     futuros_df = pd.DataFrame(data_futuros)
 else:
     futuros_df = pd.DataFrame()
-
-# Agrupar opciones por fecha y tipo
-fechas = sorted(opciones_df['fecha_venc'].unique())
-date_options = [d.strftime("%Y-%m-%d") for d in fechas]
-calls_iv = {d.strftime("%Y-%m-%d"): opciones_df[(opciones_df['fecha_venc']==d)&(opciones_df['tipo_opcion']=='CALL')][['strike','precio']].reset_index(drop=True) for d in fechas}
-puts_iv  = {d.strftime("%Y-%m-%d"): opciones_df[(opciones_df['fecha_venc']==d)&(opciones_df['tipo_opcion']=='PUT')][['strike','precio']].reset_index(drop=True) for d in fechas}
+    st.error(f"Error al obtener futuros: {data_futuros.get('body', data_futuros)}")
 
 # --------------------------------------------------
-# Selector de fecha usando strings
+# Mostrar tabla de FUTUROS estáticos
 # --------------------------------------------------
-selected_str = st.selectbox(
-    "Selecciona fecha de expiración",
-    date_options
-)
-selected_date = datetime.datetime.strptime(selected_str, "%Y-%m-%d").date()
-
-# Obtener DataFrames para la fecha seleccionada
-df_calls = calls_iv.get(selected_str, pd.DataFrame())
-df_puts  = puts_iv.get(selected_str, pd.DataFrame())
-df_call_disp = df_calls.copy()
-df_put_disp = df_puts.copy()
-
-# Mostrar tabla de FUTUROS estáticos y dinámicos
 st.subheader("Datos de FUTUROS estáticos")
 st.dataframe(df_futures_static)
-st.subheader("Datos de FUTUROS dinámicos")
-st.dataframe(futuros_df)
 
-# =========================
-# FUNCIONALIDAD DE PRUEBAS: IV SMILE
-# =========================
-def get_futuro_para_fecha(fecha, df_fut):
-    futuros_validos = df_fut[df_fut['fecha_venc'] >= fecha]
-    if not futuros_validos.empty:
-        return float(futuros_validos.iloc[0]['precio_ultimo'])
-    if not df_fut.empty:
-        return float(df_fut.iloc[-1]['precio_ultimo'])
-    return None
+# --------------------------------------------------
+# Selector de fecha de expiración (opciones scrapeadas) y tablas CALL/PUT
+# --------------------------------------------------
+if not opciones_df.empty and 'date' in opciones_df.columns:
+    fechas_opciones = sorted(opciones_df['date'].unique())
+    selected_exp_str = st.selectbox("Selecciona fecha de expiración (Opciones scrapeadas)", fechas_opciones, key="exp_opciones")
+    # Determinar columnas a mostrar
+    columnas_calls = ['strike', 'price']
+    columnas_puts = ['strike', 'price']
+    if 'volume' in opciones_df.columns:
+        columnas_calls.append('volume')
+        columnas_puts.append('volume')
+    elif 'volumen' in opciones_df.columns:
+        columnas_calls.append('volumen')
+        columnas_puts.append('volumen')
+    df_calls_op = opciones_df[(opciones_df['date'] == selected_exp_str) & (opciones_df['type'] == 'call')][columnas_calls].reset_index(drop=True)
+    df_puts_op  = opciones_df[(opciones_df['date'] == selected_exp_str) & (opciones_df['type'] == 'put')][columnas_puts].reset_index(drop=True)
+    # Eliminar columna 'id' si existe
+    if 'id' in df_calls_op.columns:
+        df_calls_op = df_calls_op.drop(columns=['id'])
+    if 'id' in df_puts_op.columns:
+        df_puts_op = df_puts_op.drop(columns=['id'])
+    st.subheader(f"Opciones CALL (scrapeadas) para {selected_exp_str}")
+    st.dataframe(df_calls_op)
+    st.subheader(f"Opciones PUT (scrapeadas) para {selected_exp_str}")
+    st.dataframe(df_puts_op)
 
-def calcular_iv(row, precio_futuro):
-    try:
-        S = precio_futuro
-        K = row['strike']
-        r = 0
-        days = max(int((selected_date - datetime.date.today()).days), 1)
-        precio = row['precio']
-        if precio <= 0 or S <= 0 or K <= 0:
-            return None
-        if 'tipo_opcion' in row and row['tipo_opcion'] == 'CALL':
-            iv = mibian.BS([S, K, r, days], callPrice=precio).impliedVolatility
-        else:
-            iv = mibian.BS([S, K, r, days], putPrice=precio).impliedVolatility
-        return iv if iv and iv > 0 else None
-    except Exception:
-        return None
+# --------------------------------------------------
+# Selector de fecha de consulta y vencimiento, tablas y gráfico Smile
+# --------------------------------------------------
+if not iv_df.empty:
+    fechas_disponibles = sorted(pd.to_datetime(iv_df['date']).dt.date.unique())
+    fecha_default = fechas_disponibles[-1] if fechas_disponibles else datetime.date.today()
+    fecha_consulta = st.date_input(
+        "Selecciona la fecha de consulta",
+        value=fecha_default,
+        min_value=min(fechas_disponibles),
+        max_value=max(fechas_disponibles)
+    )
 
-precio_fut = get_futuro_para_fecha(selected_date, futuros_df)
+    # Selector de fecha de vencimiento (todas las fechas únicas de vencimiento en IV)
+    fechas_venc_disp = sorted(iv_df['date'].unique())
+    fecha_venc_sel = st.selectbox("Selecciona fecha de vencimiento (IV)", fechas_venc_disp, key="iv_api_v2")
 
-# Calcula IV para Calls y Puts
-df_calls_iv = df_calls.copy()
-df_puts_iv = df_puts.copy()
-if not df_calls_iv.empty:
-    df_calls_iv['tipo_opcion'] = 'CALL'
-    df_calls_iv['iv'] = df_calls_iv.apply(lambda row: calcular_iv(row, precio_fut), axis=1)
-if not df_puts_iv.empty:
-    df_puts_iv['tipo_opcion'] = 'PUT'
-    df_puts_iv['iv'] = df_puts_iv.apply(lambda row: calcular_iv(row, precio_fut), axis=1)
+    # Tabla de Futuros para la fecha de consulta
+    futuros_fecha = futuros_df[futuros_df['date'] == str(fecha_consulta)]
+    st.subheader("Futuros para la fecha seleccionada")
+    st.dataframe(futuros_fecha)
 
-# Mostrar solo las tablas con IV
-st.subheader(f"Calls con volatilidad implícita para {selected_date}")
-st.dataframe(df_calls_iv)
-st.subheader(f"Puts con volatilidad implícita para {selected_date}")
-st.dataframe(df_puts_iv)
+    # Tablas de CALLs y PUTs para la fecha de vencimiento seleccionada
+    df_calls = iv_df[(iv_df['date'] == fecha_venc_sel) & (iv_df['type'] == 'call')].sort_values('strike')
+    df_puts = iv_df[(iv_df['date'] == fecha_venc_sel) & (iv_df['type'] == 'put')].sort_values('strike')
+    st.subheader(f"CALLs para {fecha_venc_sel}")
+    st.dataframe(df_calls)
+    st.subheader(f"PUTs para {fecha_venc_sel}")
+    st.dataframe(df_puts)
 
-# Gráfico de IV Smile
-st.subheader('Smile de Volatilidad Implícita (IV) vs Strike')
-fig_iv = go.Figure()
-if not df_calls_iv.empty and 'iv' in df_calls_iv.columns:
-    fig_iv.add_trace(go.Scatter(x=df_calls_iv['strike'], y=df_calls_iv['iv'], mode='lines+markers', name='CALL'))
-if not df_puts_iv.empty and 'iv' in df_puts_iv.columns:
-    fig_iv.add_trace(go.Scatter(x=df_puts_iv['strike'], y=df_puts_iv['iv'], mode='lines+markers', name='PUT'))
-fig_iv.update_layout(xaxis_title='Strike', yaxis_title='Volatilidad Implícita (IV, %)', template='plotly_white')
-st.plotly_chart(fig_iv, use_container_width=True)
+    # Gráfico Smile de IV
+    st.subheader('Smile de Volatilidad Implícita (IV) vs Strike')
+    fig_iv = go.Figure()
+    if not df_calls.empty:
+        fig_iv.add_trace(go.Scatter(x=df_calls['strike'], y=df_calls['iv'], mode='lines+markers', name='CALL', line=dict(color='blue')))
+    if not df_puts.empty:
+        fig_iv.add_trace(go.Scatter(x=df_puts['strike'], y=df_puts['iv'], mode='lines+markers', name='PUT', line=dict(color='red')))
+    fig_iv.update_layout(
+        xaxis_title='Strike',
+        yaxis_title='Volatilidad Implícita (IV, %)',
+        template='plotly_white',
+        legend_title_text='Tipo'
+    )
+    st.plotly_chart(fig_iv, use_container_width=True)
+
+    # --------------------------------------------------
+    # Superficie de Volatilidad Implícita (CALLs y PUTs)
+    # --------------------------------------------------
+    for tipo in ['call', 'put']:
+        df_surface = iv_df[iv_df['type'] == tipo]
+        if not df_surface.empty:
+            st.subheader(f"Superficie de Volatilidad Implícita ({tipo.upper()})")
+            # Pivot para tener strikes como columnas, fechas como filas
+            surface_data = df_surface.pivot_table(index='date', columns='strike', values='iv')
+            # Comprobar si hay al menos 2 strikes y 2 fechas
+            if surface_data.shape[0] < 2 or surface_data.shape[1] < 2:
+                st.info(f"No hay suficientes datos para mostrar la superficie de volatilidad implícita ({tipo.upper()}). Se requieren al menos 2 strikes y 2 fechas de vencimiento.")
+            else:
+                x = surface_data.columns.values  # strikes
+                y = surface_data.index.values    # fechas de vencimiento
+                z = surface_data.values          # matriz de IVs
+                fig = go.Figure(data=[go.Surface(z=z, x=x, y=y)])
+                fig.update_layout(
+                    title=f'Superficie de Volatilidad Implícita ({tipo.upper()})',
+                    scene=dict(
+                        xaxis_title='Strike',
+                        yaxis_title='Vencimiento',
+                        zaxis_title='IV'
+                    )
+                )
+                st.plotly_chart(fig, use_container_width=True)
+else:
+    st.info("No hay datos de IV disponibles para graficar.")

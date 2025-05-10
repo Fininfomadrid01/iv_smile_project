@@ -81,7 +81,8 @@ resource "aws_iam_policy" "lambda_dynamodb_policy" {
         aws_dynamodb_table.raw_prices.stream_arn,
         "${aws_dynamodb_table.raw_prices.stream_arn}/*",
         aws_dynamodb_table.raw_prices.arn,
-        aws_dynamodb_table.implied_vols.arn
+        aws_dynamodb_table.implied_vols.arn,
+        "arn:aws:dynamodb:us-east-1:797161732660:table/futuros-table"
       ]
     }]
   })
@@ -185,6 +186,23 @@ resource "aws_lambda_function" "scraper_v2" {
       RAW_TABLE_NAME = aws_dynamodb_table.raw_prices.name
     }
   }
+}
+
+resource "aws_lambda_function" "api_embudo_lambda" {
+  function_name = "api-embudo-lambda"
+  package_type  = "Image"
+  image_uri     = "797161732660.dkr.ecr.us-east-1.amazonaws.com/api-embudo-lambda:latest"
+  role          = aws_iam_role.lambda_exec.arn
+
+  environment {
+    variables = {
+      RAW_TABLE_NAME      = "dev-raw-prices"
+      FUTUROS_TABLE_NAME  = "futuros-table"
+      IV_TABLE_NAME       = "dev-implied-vols"
+    }
+  }
+  timeout     = 30
+  memory_size = 256
 }
 
 ############################################################
