@@ -112,6 +112,26 @@ else:
     futuros_df = pd.DataFrame()
     st.error(f"Error al obtener futuros: {data_futuros.get('body', data_futuros)}")
 
+# Selector de fecha de scraping global
+scrape_dates = []
+for df in [opciones_df, futuros_df, iv_df]:
+    if not df.empty and 'scrape_date' in df.columns:
+        scrape_dates.extend(df['scrape_date'].unique())
+# Filtra solo strings no vacíos y descarta nulos/NaN
+scrape_dates = [d for d in scrape_dates if isinstance(d, str) and d.strip() != ""]
+scrape_dates = sorted(set(scrape_dates))
+
+if scrape_dates:
+    scrape_date_sel = st.selectbox("Selecciona fecha de scraping (snapshot diario)", scrape_dates)
+    if not opciones_df.empty and 'scrape_date' in opciones_df.columns:
+        opciones_df = opciones_df[opciones_df['scrape_date'] == scrape_date_sel]
+    if not futuros_df.empty and 'scrape_date' in futuros_df.columns:
+        futuros_df = futuros_df[futuros_df['scrape_date'] == scrape_date_sel]
+    if not iv_df.empty and 'scrape_date' in iv_df.columns:
+        iv_df = iv_df[iv_df['scrape_date'] == scrape_date_sel]
+else:
+    st.info("No hay datos con campo scrape_date para filtrar.")
+
 # --------------------------------------------------
 # Mostrar tabla de FUTUROS estáticos
 # --------------------------------------------------

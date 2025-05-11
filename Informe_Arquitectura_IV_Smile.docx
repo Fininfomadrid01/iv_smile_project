@@ -1,0 +1,76 @@
+# Arquitectura Serverless para Análisis de Opciones y Futuros
+
+## 1. Resumen Ejecutivo
+Se ha desarrollado una arquitectura serverless en AWS para la automatización del scraping, almacenamiento, cálculo y visualización de datos financieros (opciones y futuros del Mini Ibex), con trazabilidad diaria y visualización profesional en una app Streamlit Cloud.
+
+## 2. Objetivos del Proyecto
+- Automatizar la recolección diaria de datos de opciones y futuros.
+- Calcular la volatilidad implícita (IV) de las opciones.
+- Almacenar todos los datos con trazabilidad por fecha de scraping.
+- Exponer los datos mediante una API REST.
+- Visualizar y analizar los datos en una app web moderna y accesible.
+
+## 3. Arquitectura General
+### Componentes Principales
+- AWS Lambda: Funciones serverless para scraping, cálculo de IV y API.
+- Amazon EventBridge: Triggers programados para la ejecución automática de los procesos.
+- Amazon DynamoDB: Almacenamiento NoSQL de opciones, futuros e IV, con campo scrape_date para trazabilidad.
+- Amazon API Gateway: Exposición de endpoints REST para consulta de datos.
+- Streamlit Cloud: App web pública para visualización y análisis.
+- Docker & ECR: Empaquetado y despliegue de Lambdas en contenedores.
+- Terraform: Infraestructura como código para gestión y despliegue reproducible.
+
+## 4. Diagrama de Arquitectura
+(Adjuntar el diagrama generado en draw.io con los iconos oficiales y las conexiones explicadas)
+
+## 5. Flujos y Automatizaciones
+### 5.1. Scraping y Cálculo Automático
+- EventBridge lanza diariamente:
+  - Lambda Scraper Opciones (cron(0 23 * * ? *))
+  - Lambda Scraper Futuros (cron(0 23 * * ? *))
+  - Lambda IV Calc (cron(20 23 * * ? *))
+- Cada Lambda guarda los datos en DynamoDB con la fecha de scraping (scrape_date).
+
+### 5.2. Exposición de Datos vía API
+- API Gateway expone los endpoints:
+  - /opciones — Devuelve opciones
+  - /futuros — Devuelve futuros
+  - /iv — Devuelve volatilidad implícita
+- Lambda API Embudo procesa las peticiones y consulta DynamoDB.
+
+### 5.3. Visualización
+- App Streamlit (https://andresiguaz.streamlit.app/) permite:
+  - Seleccionar la fecha de scraping.
+  - Visualizar tablas y gráficos de opciones, futuros e IV.
+  - Analizar la superficie de volatilidad y otros indicadores.
+
+## 6. Trazabilidad y Auditoría
+- Todos los registros en DynamoDB incluyen el campo scrape_date.
+- Es posible consultar cualquier snapshot histórico de los datos.
+- El sistema es auditable y permite análisis evolutivo.
+
+## 7. Despliegue y Mantenimiento
+- Terraform gestiona toda la infraestructura (Lambdas, triggers, tablas, API Gateway).
+- Docker y ECR facilitan el versionado y despliegue de las Lambdas.
+- GitHub centraliza el control de versiones y la colaboración.
+
+## 8. Endpoints y Triggers
+### Triggers de EventBridge
+| Trigger/EventBridge           | Cron/Regla                | Lambda destino                | Descripción                                      |
+|------------------------------|---------------------------|-------------------------------|--------------------------------------------------|
+| Scraper de futuros diario    | cron(0 23 * * ? *)        | scraper_futuros_lambda        | Scraping de futuros cada día a las 23:00 UTC     |
+| Scraper de opciones diario   | cron(0 23 * * ? *)        | dev-scraper-lambda-v2         | Scraping de opciones cada día a las 23:00 UTC    |
+| Cálculo de IV diario         | cron(20 23 * * ? *)       | iv_calc_lambda                | Cálculo de IV a las 23:20 UTC                    |
+
+### Endpoints (URLs)
+| Endpoint (URL)                                                      | Método | Lambda destino         | Descripción                  |
+|---------------------------------------------------------------------|--------|-----------------------|------------------------------|
+| /opciones https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/opciones | GET    | api-embudo-lambda     | Devuelve opciones            |
+| /futuros https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/futuros   | GET    | api-embudo-lambda     | Devuelve futuros             |
+| /iv https://cyw9gfj3pf.execute-api.us-east-1.amazonaws.com/dev/iv             | GET    | api-embudo-lambda     | Devuelve IV                  |
+| App Streamlit https://andresiguaz.streamlit.app/                               | -      | -                     | Visualización de los datos   |
+
+## 9. Contacto y Créditos
+- Responsable técnico: [Tu nombre]
+- Repositorio: [URL de tu GitHub]
+- Fecha: [Fecha de entrega] 
