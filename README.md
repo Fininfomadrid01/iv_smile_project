@@ -98,8 +98,8 @@ Se ha desarrollado una arquitectura serverless en AWS para la automatización de
 ---
 
 ## Contacto y Créditos
-- **Responsable técnico:** [Tu nombre]
-- **Repositorio:** [URL de tu GitHub]
+- **Responsable técnico:** Andres Iguaz 
+- **Repositorio:** https://github.com/Fininfomadrid01/iv_smile_project
 - **Fecha:** [Fecha de entrega]
 
 # Práctica Tecnologías Cloud - mIA-13
