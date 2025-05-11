@@ -75,7 +75,8 @@ def procesar_opciones_por_fechas(fechas):
                 'date': fecha,
                 'type': type_op,
                 'strike': Decimal(str(strike)),
-                'iv': Decimal(str(iv))
+                'iv': Decimal(str(iv)),
+                'scrape_date': datetime.utcnow().strftime('%Y-%m-%d')
             }
             db_iv_table.put_item(Item=item)
             print(f"IV calculada y guardada: {item}")
@@ -127,7 +128,8 @@ def lambda_handler(event, context):
                 'date': date,
                 'type': type_op,
                 'strike': Decimal(str(strike)),
-                'iv': Decimal(str(iv))
+                'iv': Decimal(str(iv)),
+                'scrape_date': datetime.utcnow().strftime('%Y-%m-%d')
             }
             db_iv_table.put_item(Item=item)
             print(f"IV calculada y guardada: {item}")

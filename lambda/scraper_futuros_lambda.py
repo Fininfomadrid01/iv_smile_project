@@ -3,6 +3,7 @@ import json
 import boto3
 from decimal import Decimal
 from scraper.meff_scraper_classes import MiniIbexFuturosScraper
+from datetime import datetime
 
 print("[DEBUG] Imports realizados correctamente (futuros)")
 
@@ -46,7 +47,8 @@ def lambda_handler(event, context):
                     'id': f"{row['fecha_venc']}#futures",
                     'date': str(row['fecha_venc']),
                     'type': 'futures',
-                    'last_price': Decimal(str(row['precio_ultimo']))
+                    'last_price': Decimal(str(row['precio_ultimo'])),
+                    'scrape_date': datetime.utcnow().strftime('%Y-%m-%d')
                 }
                 print(f"Guardando futuro: {item}")
                 batch.put_item(Item=item)
