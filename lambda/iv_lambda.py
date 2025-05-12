@@ -70,13 +70,14 @@ def procesar_opciones_por_fechas(fechas):
             else:
                 print(f"No se pudo calcular IV para {fecha}, strike {strike}")
                 continue
+            scrape_date = datetime.utcnow().strftime('%Y-%m-%d')
             item = {
-                'id': f"{fecha}#{type_op}#{strike}",
+                'id': f"{scrape_date}#{fecha}#{type_op}#{strike}",
                 'date': fecha,
                 'type': type_op,
                 'strike': Decimal(str(strike)),
                 'iv': Decimal(str(iv)),
-                'scrape_date': datetime.utcnow().strftime('%Y-%m-%d')
+                'scrape_date': scrape_date
             }
             db_iv_table.put_item(Item=item)
             print(f"IV calculada y guardada: {item}")
@@ -123,13 +124,14 @@ def lambda_handler(event, context):
             else:
                 print(f"No se pudo calcular IV para {date}, strike {strike}")
                 continue
+            scrape_date = datetime.utcnow().strftime('%Y-%m-%d')
             item = {
-                'id': f"{date}#{type_op}#{strike}",
+                'id': f"{scrape_date}#{date}#{type_op}#{strike}",
                 'date': date,
                 'type': type_op,
                 'strike': Decimal(str(strike)),
                 'iv': Decimal(str(iv)),
-                'scrape_date': datetime.utcnow().strftime('%Y-%m-%d')
+                'scrape_date': scrape_date
             }
             db_iv_table.put_item(Item=item)
             print(f"IV calculada y guardada: {item}")

@@ -43,12 +43,13 @@ def lambda_handler(event, context):
         print(f"[DEBUG] Guardando {len(df_futuros)} futuros en DynamoDB...")
         with raw_table.batch_writer() as batch:
             for _, row in df_futuros.iterrows():
+                scrape_date = datetime.utcnow().strftime('%Y-%m-%d')
                 item = {
-                    'id': f"{row['fecha_venc']}#futures",
+                    'id': f"{scrape_date}#{row['fecha_venc']}#futures",
                     'date': str(row['fecha_venc']),
                     'type': 'futures',
                     'last_price': Decimal(str(row['precio_ultimo'])),
-                    'scrape_date': datetime.utcnow().strftime('%Y-%m-%d')
+                    'scrape_date': scrape_date
                 }
                 print(f"Guardando futuro: {item}")
                 batch.put_item(Item=item)
