@@ -238,3 +238,58 @@ if not iv_df.empty:
                 st.plotly_chart(fig, use_container_width=True)
 else:
     st.info("No hay datos de IV disponibles para graficar.")
+
+# Menú principal en la barra lateral
+menu = st.sidebar.radio(
+    "Navegación",
+    ("Visualización diaria", "Comparar skews históricos"),
+    index=0
+)
+
+if menu == "Visualización diaria":
+    # ... tu flujo actual de visualización diaria ...
+    pass  # Aquí va el código existente
+else:
+    st.header("Comparar skews históricos de volatilidad implícita")
+    # Extrae y ordena las fechas únicas disponibles
+    fechas_disponibles = sorted(pd.to_datetime(iv_df['scrape_date']).dt.date.unique())
+    if len(fechas_disponibles) >= 2:
+        col1, col2 = st.columns(2)
+        with col1:
+            fecha1 = st.date_input(
+                "Selecciona la primera fecha de scraping",
+                value=fechas_disponibles[-2],
+                min_value=min(fechas_disponibles),
+                max_value=max(fechas_disponibles),
+                key="fecha1"
+            )
+        with col2:
+            fecha2 = st.date_input(
+                "Selecciona la segunda fecha de scraping",
+                value=fechas_disponibles[-1],
+                min_value=min(fechas_disponibles),
+                max_value=max(fechas_disponibles),
+                key="fecha2"
+            )
+        fechas_seleccionadas = [str(fecha1), str(fecha2)]
+        iv_df_filtrado = iv_df[iv_df['scrape_date'].isin(fechas_seleccionadas)]
+        fig = go.Figure()
+        for fecha in fechas_seleccionadas:
+            for tipo in ['call', 'put']:
+                df_tipo = iv_df_filtrado[(iv_df_filtrado['scrape_date'] == fecha) & (iv_df_filtrado['type'] == tipo)]
+                if not df_tipo.empty:
+                    fig.add_trace(go.Scatter(
+                        x=df_tipo['strike'],
+                        y=df_tipo['iv'],
+                        mode='lines+markers',
+                        name=f"{tipo.upper()} - {fecha}"
+                    ))
+        fig.update_layout(
+            title="Comparativa de Skews de Volatilidad Implícita",
+            xaxis_title="Strike",
+            yaxis_title="Volatilidad Implícita (IV)",
+            legend_title="Tipo y Fecha"
+        )
+        st.plotly_chart(fig)
+    else:
+        st.info("No hay suficientes fechas para comparar skews históricos.")
