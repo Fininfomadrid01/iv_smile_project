@@ -5,6 +5,6 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY iv_lambda.py .
-COPY scraper/ ./scraper/
+# COPY scraper/ ./scraper/
 
 CMD ["iv_lambda.lambda_handler"] 

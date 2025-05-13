@@ -33,6 +33,29 @@ def implied_volatility(option_price, S, K, T, r, tipo='call'):
     except Exception:
         return None
 
+def buscar_futuro_mas_cercano(fecha_opcion, futuros_table):
+    print("Buscando futuro más cercano para la fecha de la opción:", fecha_opcion)
+    response = futuros_table.scan()
+    futuros = response['Items']
+    print("Futuros encontrados:", futuros)
+    if not futuros:
+        return None
+    from datetime import datetime
+    fecha_opcion_dt = datetime.strptime(fecha_opcion, '%Y-%m-%d')
+    fechas_futuros = []
+    for f in futuros:
+        try:
+            fechas_futuros.append((f, datetime.strptime(f['date'], '%Y-%m-%d')))
+        except Exception as e:
+            print(f"Error convirtiendo fecha de futuro: {f.get('date', '')}, error: {e}")
+            continue
+    if not fechas_futuros:
+        return None
+    # Encuentra el futuro más cercano en días
+    futuro_mas_cercano = min(fechas_futuros, key=lambda x: abs((x[1] - fecha_opcion_dt).days))[0]
+    print("Futuro más cercano encontrado:", futuro_mas_cercano)
+    return futuro_mas_cercano
+
 def procesar_opciones_por_fechas(fechas):
     resultados = []
     for fecha in fechas:
@@ -51,8 +74,11 @@ def procesar_opciones_por_fechas(fechas):
             future_id = f"{fecha}#futures"
             fut_item = futuros_table.get_item(Key={'id': future_id}).get('Item')
             if not fut_item:
-                print(f"No se encontró futuro para {fecha}")
-                continue
+                # Buscar el futuro más cercano si no hay coincidencia exacta
+                fut_item = buscar_futuro_mas_cercano(fecha, futuros_table)
+                if not fut_item:
+                    print(f"No se encontró futuro para {fecha} (ni cercano)")
+                    continue
             future_price = float(fut_item['last_price'])
             T = 30/365  # O ajusta con el valor real de días a vencimiento
             r = 0
