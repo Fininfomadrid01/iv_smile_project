@@ -1,0 +1,8 @@
+FROM public.ecr.aws/lambda/python:3.11
+
+COPY requirements.txt .
+RUN pip install -r requirements.txt
+
+COPY app_futuros2.py .
+
+CMD ["app_futuros2.lambda_handler"] 

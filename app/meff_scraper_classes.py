@@ -87,14 +87,21 @@ class MiniIbexFuturosScraper:
             raise RuntimeError("No se encontró la tabla de futuros")
         df = pd.read_html(StringIO(str(tabla)), decimal=",", thousands=".")[0]
         df = df[df.iloc[:, 0] != "Volumen Total"]
-        if isinstance(df.columns[0], tuple):
-            df.columns = [c[0].strip().lower() for c in df.columns]
-        else:
-            df.columns = [c.strip().lower() for c in df.columns]
-        df.rename(columns={"vencimiento": "fecha_venc", "últ.": "precio_ultimo"}, inplace=True)
-        df["fecha_venc"] = df["fecha_venc"].apply(lambda x: datetime.datetime.strptime(x.strip(), "%d %b. %Y").date())
-        df["precio_ultimo"] = df["precio_ultimo"].astype(float)
-        return df[["fecha_venc", "precio_ultimo"]]
+
+        # Normaliza nombres de columnas
+        df.columns = [str(c).strip().lower() for c in df.columns]
+
+        # Toma la primera columna como fecha de vencimiento
+        df.rename(columns={df.columns[0]: "fecha_venc"}, inplace=True)
+        # Toma la última columna como precio (ANT) y la llama 'Ant'
+        df["Ant"] = df[df.columns[-1]]
+
+        # Convierte fecha y precio
+        df["fecha_venc"] = df["fecha_venc"].apply(lambda x: datetime.datetime.strptime(str(x).strip(), "%d %b. %Y").date())
+        df["Ant"] = pd.to_numeric(df["Ant"], errors="coerce")
+
+        # Devuelve solo las columnas relevantes
+        return df[["fecha_venc", "Ant"]]
 
     def obtener_futuros(self):
         html = self.fetch_html()

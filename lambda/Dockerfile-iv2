@@ -1,0 +1,16 @@
+# Imagen base oficial de AWS Lambda para Python 3.11
+FROM public.ecr.aws/lambda/python:3.11
+
+# Copia los requirements
+COPY requirements.txt .
+
+# Instala las dependencias (incluye compiladores para scipy/numpy)
+RUN yum install -y gcc python3-devel \
+    && pip install --upgrade pip \
+    && pip install --no-cache-dir -r requirements.txt
+
+# Copia el código fuente de la lambda (ajusta el path si tu código está en otra carpeta)
+COPY . .
+
+# Define el handler correcto para Lambda
+CMD ["iv_lambda.lambda_handler"] 

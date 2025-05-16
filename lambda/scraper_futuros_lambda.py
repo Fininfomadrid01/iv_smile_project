@@ -4,6 +4,7 @@ import boto3
 from decimal import Decimal
 from scraper.meff_scraper_classes import MiniIbexFuturosScraper
 from datetime import datetime
+import pandas as pd
 
 print("[DEBUG] Imports realizados correctamente (futuros)")
 
@@ -13,6 +14,7 @@ def decimal_default(obj):
     raise TypeError
 
 def lambda_handler(event, context):
+    print("=== HANDLER TEST VERSION 20240515 ===")
     print("=== INICIO LAMBDA FUTUROS ===")
     """
     Lambda que realiza el scraping de futuros con BeautifulSoup
@@ -43,6 +45,9 @@ def lambda_handler(event, context):
         print(f"[DEBUG] Guardando {len(df_futuros)} futuros en DynamoDB...")
         with raw_table.batch_writer() as batch:
             for _, row in df_futuros.iterrows():
+                if pd.isna(row['precio_ultimo']):
+                    print(f"Saltando futuro con precio NaN: {row}")
+                    continue
                 scrape_date = datetime.utcnow().strftime('%Y-%m-%d')
                 item = {
                     'id': f"{scrape_date}#{row['fecha_venc']}#futures",
