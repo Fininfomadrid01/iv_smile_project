@@ -13,30 +13,18 @@ st.set_page_config(page_title="IV Smile App v2", layout="wide")
 
 st.title("IV Smile App v2")
 
-st.sidebar.header("Carga de datos")
-
 # Espacio para cargar archivos CSV o conectar a base de datos
-uploaded_file = st.sidebar.file_uploader("Sube un archivo CSV de opciones/futuros", type=["csv"]) 
+# uploaded_file = st.sidebar.file_uploader("Sube un archivo CSV de opciones/futuros", type=["csv"]) 
 
-if uploaded_file is not None:
-    try:
-        df = pd.read_csv(uploaded_file)
-        st.success("Archivo cargado correctamente.")
-        st.dataframe(df.head())
-    except Exception as e:
-        st.error(f"Error al leer el archivo: {e}")
-else:
-    st.info("Sube un archivo para comenzar el análisis.")
-
-# Espacio para agregar más módulos, tabs, visualizaciones, etc.
-st.write("\n---\n")
-st.subheader("Aquí irán los módulos de análisis, visualización y estadísticas.")
-
-# Ejemplo de placeholder para futuras funciones
-def placeholder():
-    st.write("Módulo futuro aquí...")
-
-placeholder() 
+# if uploaded_file is not None:
+#     try:
+#         df = pd.read_csv(uploaded_file)
+#         st.success("Archivo cargado correctamente.")
+#         st.dataframe(df.head())
+#     except Exception as e:
+#         st.error(f"Error al leer el archivo: {e}")
+# else:
+#     st.info("Sube un archivo para comenzar el análisis.")
 
 # --- Utilidades de normalización flexible ---
 def normaliza_columnas(df):
@@ -138,36 +126,24 @@ tab1, tab2, tab3 = st.tabs(["Smile de IV", "Comparador de Skews", "Superficie de
 # --- Smile de IV (un scrape date) ---
 with tab1:
     st.header("Smile de Volatilidad Implícita (IV) vs Strike")
-    # Solo fechas y vencimientos con IVs no nulos
     scrape_dates = sorted(set(iv_df[iv_df['iv'].notnull()]['scrape_date'].dropna().unique())) if not iv_df.empty and 'scrape_date' in iv_df.columns else []
     fechas_venc = sorted(set(iv_df[iv_df['iv'].notnull()]['date'].dropna().unique())) if not iv_df.empty and 'date' in iv_df.columns else []
     min_date = "2025-05-15"
     scrape_dates = [d for d in scrape_dates if d >= min_date]
-    default_date = "2025-05-16"
-    index_smile = scrape_dates.index(default_date) if default_date in scrape_dates else 0
-    scrape_date_sel = st.sidebar.selectbox("[Smile] Selecciona fecha de scraping", scrape_dates, key="smile_scrape", index=index_smile)
-    fecha_venc_sel = st.sidebar.selectbox("[Smile] Selecciona fecha de ejercicio (vencimiento)", fechas_venc, key="smile_venc")
+    default_scrape = "2025-05-16"
+    default_venc = "2025-05-23"
+    index_smile = scrape_dates.index(default_scrape) if default_scrape in scrape_dates else 0
+    index_venc = fechas_venc.index(default_venc) if default_venc in fechas_venc else 0
+    scrape_date_sel = st.selectbox("[Smile] Selecciona fecha de scraping", scrape_dates, key="smile_scrape", index=index_smile)
+    fecha_venc_sel = st.selectbox("[Smile] Selecciona fecha de ejercicio (vencimiento)", fechas_venc, key="smile_venc", index=index_venc)
     if fecha_venc_sel and scrape_date_sel and not iv_df.empty:
         df_plot_raw = iv_df[(iv_df['scrape_date'] == scrape_date_sel) & (iv_df['date'] == fecha_venc_sel)].copy()
-        st.write('Datos solo filtrados por fecha:', df_plot_raw)
-        if 'iv' in df_plot_raw.columns:
-            st.write('IV nulos:', df_plot_raw['iv'].isnull().sum())
-            st.write('IV no nulos:', df_plot_raw['iv'].notnull().sum())
-        if 'strike' in df_plot_raw.columns:
-            st.write('Tipos de strike:', df_plot_raw['strike'].apply(type).value_counts())
-            st.write('Ejemplo de strikes:', df_plot_raw['strike'].head(10))
-        # Filtra filas problemáticas
         df_plot = df_plot_raw.copy()
         for col in ['strike', 'iv', 'price', 'dias_vto']:
             if col in df_plot.columns:
                 df_plot = df_plot[pd.to_numeric(df_plot[col], errors='coerce').notnull()]
         if 'type' in df_plot.columns:
             df_plot = df_plot[~df_plot['type'].isin(['Difer.'])]
-        # DEBUG: Mostrar los datos filtrados antes de graficar
-        st.write('Datos filtrados para el gráfico:')
-        st.write(df_plot)
-        if 'iv' in df_plot.columns:
-            st.write('IV min/max:', df_plot['iv'].min(), df_plot['iv'].max())
         df_calls = df_plot[df_plot['type'] == 'call'].sort_values('strike').copy()
         df_puts  = df_plot[df_plot['type'] == 'put'].sort_values('strike').copy()
         fig = go.Figure()
@@ -187,7 +163,6 @@ with tab1:
         else:
             st.info("No hay datos de CALL ni PUT para graficar el smile de IV.")
         st.subheader("Datos de IV para la fecha seleccionada")
-        # Mostrar solo las columnas que existen
         cols_plot = [c for c in ['strike', 'iv', 'type', 'date', 'scrape_date', 'dias_vto'] if c in df_plot.columns]
         st.dataframe(df_plot[cols_plot])
     else:
@@ -196,20 +171,23 @@ with tab1:
 # --- Comparador de Skews (dos scrape dates) ---
 with tab2:
     st.header("Comparador de Skews: IV vs Strike para dos fechas de scrape")
-    # Solo fechas y vencimientos con IVs no nulos
     scrape_dates = sorted(set(iv_df[iv_df['iv'].notnull()]['scrape_date'].dropna().unique())) if not iv_df.empty and 'scrape_date' in iv_df.columns else []
     fechas_venc = sorted(set(iv_df[iv_df['iv'].notnull()]['date'].dropna().unique())) if not iv_df.empty and 'date' in iv_df.columns else []
     min_date = "2025-05-15"
     scrape_dates = [d for d in scrape_dates if d >= min_date]
-    default_date = "2025-05-16"
-    index_comp1 = scrape_dates.index(default_date) if default_date in scrape_dates else 0
-    scrape_date_1 = st.sidebar.selectbox("[Comparador] Selecciona primera fecha de scraping", scrape_dates, key="comp_scrape1", index=index_comp1)
-    scrape_date_2 = st.sidebar.selectbox("[Comparador] Selecciona segunda fecha de scraping", scrape_dates, key="comp_scrape2")
-    fecha_venc_sel_comp = st.sidebar.selectbox("[Comparador] Selecciona fecha de ejercicio (vencimiento)", fechas_venc, key="comp_venc")
+    default_comp1 = "2025-05-16"
+    default_comp2 = "2025-05-15"
+    default_venc_comp = "2025-05-30"
+    index_comp1 = scrape_dates.index(default_comp1) if default_comp1 in scrape_dates else 0
+    index_comp2 = scrape_dates.index(default_comp2) if default_comp2 in scrape_dates else 0
+    index_venc_comp = fechas_venc.index(default_venc_comp) if default_venc_comp in fechas_venc else 0
+
+    scrape_date_1 = st.selectbox("[Comparador] Selecciona primera fecha de scraping", scrape_dates, key="comp_scrape1", index=index_comp1)
+    scrape_date_2 = st.selectbox("[Comparador] Selecciona segunda fecha de scraping", scrape_dates, key="comp_scrape2", index=index_comp2)
+    fecha_venc_sel_comp = st.selectbox("[Comparador] Selecciona fecha de ejercicio (vencimiento)", fechas_venc, key="comp_venc", index=index_venc_comp)
     if scrape_date_1 and scrape_date_2 and fecha_venc_sel_comp and not iv_df.empty:
         df1 = iv_df[(iv_df['scrape_date'] == scrape_date_1) & (iv_df['date'] == fecha_venc_sel_comp)].copy()
         df2 = iv_df[(iv_df['scrape_date'] == scrape_date_2) & (iv_df['date'] == fecha_venc_sel_comp)].copy()
-        # Agrupa y promedia si hay duplicados por strike y tipo
         if not df1.empty:
             df1 = df1.groupby(['strike', 'type'], as_index=False)['iv'].mean()
         if not df2.empty:
@@ -249,23 +227,20 @@ with tab2:
 
 with tab3:
     st.header("Superficie de Volatilidad Implícita 3D")
-    # Filtros para tipo y fecha
     tipos_disponibles = sorted(iv_df['type'].dropna().unique()) if not iv_df.empty and 'type' in iv_df.columns else []
-    tipo_sel = st.sidebar.selectbox("[Superficie] Tipo de opción", tipos_disponibles, key="surf_tipo")
+    tipo_sel = st.selectbox("[Superficie] Tipo de opción", tipos_disponibles, key="surf_tipo")
     scrape_dates = sorted(set(iv_df['scrape_date'].dropna().unique())) if not iv_df.empty else []
     min_date = "2025-05-15"
     scrape_dates = [d for d in scrape_dates if d >= min_date]
     default_date = "2025-05-16"
     index_surf = scrape_dates.index(default_date) if default_date in scrape_dates else 0
-    scrape_date_sel = st.sidebar.selectbox("[Superficie] Selecciona fecha de scraping", scrape_dates, key="surf_scrape", index=index_surf)
-    interp = st.sidebar.checkbox("Interpolar superficie (más suave)", value=True, key="surf_interp")
+    scrape_date_sel = st.selectbox("[Superficie] Selecciona fecha de scraping", scrape_dates, key="surf_scrape", index=index_surf)
+    interp = True  # Siempre interpolar por defecto
     if scrape_date_sel and tipo_sel and not iv_df.empty:
         df_surf = iv_df[(iv_df['scrape_date'] == scrape_date_sel) & (iv_df['type'] == tipo_sel)].copy()
-        # Asegúrate de tener 'strike', 'dias_vto', 'iv' como numéricos
         for col in ['strike', 'iv']:
             if col in df_surf.columns:
                 df_surf[col] = pd.to_numeric(df_surf[col], errors='coerce')
-        # Si no existe 'dias_vto', calcúlalo
         if 'dias_vto' not in df_surf.columns and 'date' in df_surf.columns and 'scrape_date' in df_surf.columns:
             try:
                 df_surf['dias_vto'] = (pd.to_datetime(df_surf['date']) - pd.to_datetime(df_surf['scrape_date'])).dt.days
@@ -273,10 +248,8 @@ with tab3:
                 df_surf['dias_vto'] = np.nan
         else:
             df_surf['dias_vto'] = pd.to_numeric(df_surf['dias_vto'], errors='coerce')
-        # Elimina filas con nulos
         df_surf = df_surf.dropna(subset=['strike', 'dias_vto', 'iv'])
         if interp and not df_surf.empty:
-            # Interpolación
             strikes = np.linspace(df_surf['strike'].min(), df_surf['strike'].max(), 40)
             dias = np.linspace(df_surf['dias_vto'].min(), df_surf['dias_vto'].max(), 40)
             X, Y = np.meshgrid(dias, strikes)
@@ -296,7 +269,6 @@ with tab3:
             )
             st.plotly_chart(fig, use_container_width=True)
         elif not df_surf.empty:
-            # Superficie original (sin interpolar)
             surf_pivot = df_surf.pivot_table(index='strike', columns='dias_vto', values='iv')
             X, Y = np.meshgrid(surf_pivot.columns, surf_pivot.index)
             Z = surf_pivot.values
@@ -312,7 +284,6 @@ with tab3:
                 margin=dict(l=65, r=50, b=65, t=90)
             )
             st.plotly_chart(fig, use_container_width=True)
-        # Mostrar solo las columnas que existen
         cols_surf = [c for c in ['strike', 'dias_vto', 'iv', 'date', 'scrape_date', 'type'] if c in df_surf.columns]
         st.dataframe(df_surf[cols_surf])
     else:
